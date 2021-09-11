@@ -566,7 +566,7 @@ private int volumeCreditFor(Plays plays, Performance performance) {
 }
 ```
 
-### volumeCredits 변숮 제거하기 
+### volumeCredits 변수 제거하기 
 
 다음으로 살펴볼 변수는 statement 메소드에 있는 volumeCredits 인데 이 변수는 반복문을 돌 때마다 값을 누적시킨다. 
 
@@ -684,7 +684,7 @@ public String statement(Invoice invoice, Plays plays) throws Exception {
 
 반복문을 쪼개서 성능이 느려지지 않을까? 라는 걱정을 할 수 있다. 
 
-이처럼 반복문이 중보되는 것을 꺼려하는 이들이 많지만 이 정도 중복은 성능에 미치는 영향이 미비할때가 많다. 
+이처럼 반복문이 중복되는 것을 꺼려하는 이들이 많지만 이 정도 중복은 성능에 미치는 영향이 미비할때가 많다. 
 
 실제로 리팩터링 전과 후의 실행 시간을 측정해보면 차이를 거의 느끼지 못할 것이다. 
 
