@@ -12,5 +12,9 @@ http://www.yes24.com/Product/Goods/89649360?OzSrank=1
 
 - [코드에서 나는 악취](document/chapter-03/README.md)
 
+- [테스트 구축하기](document/chapter-04/README.md)
+
+
+
 
 
