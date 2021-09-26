@@ -14,7 +14,7 @@ http://www.yes24.com/Product/Goods/89649360?OzSrank=1
 
 - [테스트 구축하기](document/chapter-04/README.md)
 
-
+- [리팩토링 카탈로그 보는 법](document/chapter-05/README.md)
 
 
 
