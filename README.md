@@ -16,5 +16,8 @@ http://www.yes24.com/Product/Goods/89649360?OzSrank=1
 
 - [리팩토링 카탈로그 보는 법](document/chapter-05/README.md)
 
+- [기본적인 리팩터링](document/chapter-06/README.md)
+
+
 
 
