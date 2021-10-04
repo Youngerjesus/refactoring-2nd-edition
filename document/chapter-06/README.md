@@ -1112,6 +1112,352 @@ public double calculateBaseCharge(Reading reading) {
 
 ***
 
+## 6.10 여러 함수를 변환 함수로 묶기 
+
+### 배경 
+
+소프트웨어는 데이터를 입력 받아서 여러가지 정보를 도출한다.
+
+이렇게 도출된 정보를 바탕으로 비슷한 도출 로직이 또 일어나는 경우가 있다.
+
+이 정보가 사용되는 곳마다 반복적인 도출 로직이 일어나는 곳이 있다.
+
+이 경우에는 이런 도출 작업들을 한 곳으로 모우는걸 추천한다.
+
+모아두면 검색과 갱신을 일관적으로 적용하는게 가능해지기 때문이다. __(중복 제거와 관련된 부분)__
+
+이 방법으로 변환 함수 (transform) 를 적용할 수 있다.
+
+변환 함수는 원본 데이터를 받아서 필요한 정보를 도출하고 출력 데이터를 만들어서 이를 반환하는 방법이다.
+
+__이 변환 함수의 특징은 여러 곳에서 도출하는게 아니라 변환 함수만 바라보도록 하는 것이 특징이다.__
+
+이 방법 대신 여러 함수를 클래스로 묶기 (6.9절) 로 처리해도 좋다.
+
+둘 중 어느 것을 처리해도 별로 상관 없다. __(한 군데로 모운다는 점이 특징이다.)__
+
+다만 원본 데이터가 코드 안에서 갱신 되는 경우라면 클래스로 문제를 해결하는 것이 낫다. __(그 데이터 변경은 자기가 담당하는게 나으니까. 데이터와 그 데이터를 다루는 메소드는 가까이 있는게 좋다.)__
+
+__변환 함수로 묶는다면 원본 데이터가 수정되면 일관성이 꺠질 수 있기 떄문이다.__ __(정확한 이 예제를 보고 싶긴하네.)__
+
+### 절차 
+
+1. 변환할 레코드를 입력받아서 값을 그대로 반환하는 변환 함수를 만든다. __(이 작업은 깊은 복사를 이용하자. 원본을 바꾸지 않는지가 중요할 수 있기 떄문에.)__
+
+2. 묶을 함수 중 하나를 골라서 본문 코드를 변환 함수로 옮기고 레코드에 새 필드로 기록한다. 그런 다음 클라이언트가 이 필드를 사용하도록 수정한다. 
+
+3. 테스트 한다. 
+
+4. 나머지 묶을 함수들도 반복해서 처리한다.
+
+### 예시
+
+이전에 6.9절에서 봤던 차와 관련된 예제를 가지고와서 설명하겠다. 
+
+#### 클라이언트 1
+
+```java
+Reading reading = acquireReading(); 
+double baseCharge = baseRate(reading.month, reading.year) * reading.quantity; 
+```
+
+#### 클라이언트 2
+
+```java
+Reading reading = acquireReading(); 
+double base = (baseRate(reading.month, reading.year) * reading.quantity); 
+double taxableCharge = Math.max(0, base - taxThreshold(reading.year)); 
+```
+
+#### 클라이언트 3
+
+```java
+Reading reading = acquireReading(); 
+double base = calculateBaseCharge(reading)
+
+public double calculateBaseCharge(Reading reading) {
+    return (baseRate(reading.month, reading.year) * reading.quantity); 
+}
+```
+ 
+여기서는 도출 함수가 여러곳에서 중복적으로 발생하고 있다. 
+
+이를 해결하는방법으로 다양한 파생 정보 계산 로직을 모두 하나의 변환 함수에 넣고자 한다. 
+
+먼저 입력 객체를 그대로 복사해서 반환하는 변환 함수를 만들자. 
+
+```java
+public Reading enrichReading(Reading reading) throws Exception {
+    Reading result = reading.clone(); 
+    return result; 
+}
+```
+
+이제 변환 함수에 묶을 계산 로직을 하나 고르자. 클라이언트 3 의 기본 소비량을 계산하는 부분을 옮겨보자. 
+
+```java
+public Reading enrichReading(Reading reading) throws Exception {
+    Reading result = reading.clone(); 
+    result.baseCharge = calculateBaseCharge(result); 
+    return result; 
+}
+```
+
+그러면 기존의 클라이언트 코드는 다음과 같이 될 것이다. 
+
+```java
+Reading rawReading = acquireReading();
+Reading reading = enrichReading(rawReading); 
+double basicChargeAmount = reading.baseCharge;  
+```
+
+여기서 주의할 점은 enrichReading() 같은 변환함수는 원본을 변경하면 안된다는 것이다.
+
+그래서 이에 대비해서 테스트 코드를 짜놔야한다. 
+
+
+***
+
+## 6.11 단계 쪼개기
+
+### 배경
+
+나는 서로 다른 두 대상을 한꺼번에 다루는 코드를 발견하면 각각을 별개의 모듈로 나누는 방법을 찾는다. 
+
+두 대상을 한번에 생각하는 것이 아니라 한 대상씩 생각하기 위함이다. 
+
+모듈이 잘 분리되어 있다면 다른 모듈의 상세 내용은 전혀 기억하지 않아도 된다 라는 장점이 있다. __(모듈간의 결합도를 낮추고 응집도를 높이는 걸 말한다.)__
+
+이렇게 하기 위해 가장 간편한 방법은 동작을 연이은 두 단계로 쪼개는 것이다. __(한 모듈 수정 후 다른 모듈 수정 이런식으로 단계를 나누는 것)__
+
+입력이 처리 로직에 적합하지 않은 형태로 들어오는 경우를 생각해보자. 
+
+이때는 본 작업 전에 입력값을 다루기 편한 형태로 가공해야한다.
+
+아니면 로직을 순차적인 단계들로 분리해도 된다. 중요한 건 각 단계는 서로 확연히 다른 일을 수행해야 한다.
+
+이런 과정은 컴파일러와 유사하다. 
+
+컴파일러는 기본적으로 어떤 텍스트를 입력받아서 실행 가능한 형태로 변환한다. 
+
+컴파일러는 지속적으로 발전하면서 여러 단계로 구성되는게 좋다고 판단되었는데 과정은 다음과 같다.
+
+- 텍스트를 토큰화 하기
+
+- 토큰을 파싱해서 구문 트리 만들기
+
+- 구문 트리 변환해서 목적 코드 만들기
+
+각 단계는 자신의 목적만 집중하기 때문에 나머지 단계를 몰라도 된다. 
+
+즉 자신의 문제만 해결하면 된다.
+
+이렇게 단계를 쪼개는 기법은 주로 덩치 큰 소프트웨어에 적용된다. 
+
+가령 컴파일러의 매 단계든 다수의 함수와 클래스로 구성된다.
+
+하지만 나는 규모에 관계없이 여러 단계로 분리하면 좋을만한 코드를 발견할 때마다 기본적으로 단계 쪼개기 리팩토링을 한다. 
+
+코드 영역들이 마침 서로 다른 데이터와 함수를 사용한다면 이는 단계 쪼개기에 적합하다는 뜻이다.
+
+이렇게 별개의 모듈로 분리하면 코드를 훨씬 분명하게 드러내는게 가능하다.
+
+### 절차
+
+1. 두 번째 단계에 해당하는 코드를 독립 함수로 추출한다.
+
+2. 테스트 한다.
+
+3. 중간 데이터 구조를 만들고 앞에서 추출한 함수의 인수로 추가한다. 
+
+4. 테스트 한다. 
+
+5. 추출한 두 번째 단계 함수의 매개변수를 하나씩 검토한다. 그 중 첫번째 단계에서 사용되는 것은 중간 데이터 구조로 옮긴다. 하나씩 옮길 때마다 테스트한다. __(모듈과 모듈 사이에는 데이터 공유가 겹치면 안된다. 그리고 가령 두 번째 단계에서 사용하면 안되는 매개변수가 있는데 이는 중간 데이터 구조로 옮기고 이 필드를 설정하는 문장을 호춣한 곳으로 옮긴다.)__
+
+6. 첫 번째 단계 코드를 함수로 추출하면서 중간 데이터 구조를 반환하도록 만든다. 
+
+### 예시
+
+상품의 결제 금액을 계산하는 코드로 시작해보자. 
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    int shippingPerCase = basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = quantity * shippingPerCase;
+    int price = basePrice - discount * shippingCost;
+    return price; 
+}
+````
+
+간단한 예지만 가만 보면 계산이 두 단계로 나눠져있다. 
+
+앞의 멸 줄은 상품 정보를 이용해 결제 금액중 상품 가격을 계산한다. __(basePrice 를 계산하는 걸 말한다.)__
+
+반면 뒤의 정보는 배송정보를 이용해 결제 금액 중 배송비를 계산하다. __(shippingCost 를 계산하는 걸 말한다.)__
+
+그러므로 이 코드는 두 단계로 나누는 것이 좋다. 
+
+먼저 배송비 계산 부분을 함수로 추출하자.
+
+```java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    int price = applyShipping(quantity, shippingMethod, basePrice, discount);
+    return price;
+}
+
+private int applyShipping(int quantity, ShippingMethod shippingMethod, int basePrice, int discount) {
+    int shippingPerCase = basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = quantity * shippingPerCase;
+    int price = basePrice - discount * shippingCost;
+    return price;
+}
+```
+
+두 번째 단계에 필요한 모든 데이터를 넘겨줬다. 실전에서는 이보다 많을 수 있는데 어짜피 걸러낼 것이기 때문에 걱정할 필요는 없다. 
+
+다음으로 첫 번째 단계와 두 번째 단계가 주고받을 중간 데이터 구조를 만든다. 
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    PriceData priceData = new PriceData(); 
+    int price = applyShipping(priceData, quantity, shippingMethod, basePrice, discount);
+    return price;
+}
+
+private int applyShipping(PriceData priceData, int quantity, ShippingMethod shippingMethod, int basePrice, int discount) {
+    int shippingPerCase = basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = quantity * shippingPerCase;
+    int price = basePrice - discount * shippingCost;
+    return price;
+}
+````
+
+이제 applyShipping() 에 전달하는 다양한 매개변수를 보자. 
+
+basePrice 는 첫 번째 단계에서 생성되는 데이터이기 때문에 중간 데이터 구조로 옮기고 매개변수에서 제거하자.
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    PriceData priceData = new PriceData();
+    priceData.basePrice = basePrice;
+    int price = applyShipping(priceData, quantity, shippingMethod, discount);
+    return price;
+}
+
+private int applyShipping(PriceData priceData, int quantity, ShippingMethod shippingMethod, int discount) {
+    int shippingPerCase = priceData.basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = quantity * shippingPerCase;
+    int price = priceData.basePrice - discount * shippingCost;
+    return price;
+}
+````
+
+다음으로 shippingMethod 를 보자. 
+
+이 매개변수는 첫 번째 단계에서 사용하지는 않으니 일단 놔두자.
+
+그 다음 quantity 는 첫 번째 단계에서 생성된 것은 아니지만 거기서 사용하므로 이도 중간 데이터 구조에 넣자.
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    PriceData priceData = new PriceData();
+    priceData.quantity = quantity; 
+    priceData.basePrice = basePrice;
+    int price = applyShipping(priceData, shippingMethod, discount);
+    return price;
+}
+
+private int applyShipping(PriceData priceData, ShippingMethod shippingMethod, int discount) {
+    int shippingPerCase = priceData.basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = priceData.quantity * shippingPerCase;
+    int price = priceData.basePrice - discount * shippingCost;
+    return price;
+}
+````
+
+discount 매개변수도 같은 방식으로 처리하자. 
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    PriceData priceData = new PriceData();
+    priceData.quantity = quantity;
+    priceData.basePrice = basePrice;
+    priceData.discount = discount;
+    int price = applyShipping(priceData, shippingMethod);
+    return price;
+}
+
+private int applyShipping(PriceData priceData, ShippingMethod shippingMethod) {
+    int shippingPerCase = priceData.basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = priceData.quantity * shippingPerCase;
+    int price = priceData.basePrice - priceData.discount * shippingCost;
+    return price;
+}
+````
+
+이제 중간 데이터 구조가 완성되었으니 첫 번째 단계 코드를 함수 추출하고 이 데이터 구조를 반환하도록 하자.
+
+````java
+public double priceOrder(Product product, int quantity, ShippingMethod shippingMethod) {
+    PriceData priceData = calculatePricingData(product, quantity);
+    return applyShipping(priceData, shippingMethod);
+}
+
+private PriceData calculatePricingData(Product product, int quantity) {
+    int basePrice = product.basePrice * quantity;
+    int discount = Math.max(quantity - product.discountThreshold, 0) * product.basePrice * product.discountRate;
+    PriceData priceData = new PriceData();
+    priceData.quantity = quantity;
+    priceData.basePrice = basePrice;
+    priceData.discount = discount;
+    return priceData;
+}
+
+private int applyShipping(PriceData priceData, ShippingMethod shippingMethod) {
+    int shippingPerCase = priceData.basePrice > shippingMethod.discountThreshold ?
+            shippingMethod.discountFee :
+            shippingMethod.feePerCase;
+    int shippingCost = priceData.quantity * shippingPerCase;
+    int price = priceData.basePrice - priceData.discount * shippingCost;
+    return price;
+}
+````
+
+### 예시: 명령줄 프로그램 쪼개기 
+
+또 다른 예시를 보자. 
+
+JSON 파일에 담긴 주문의 개수를 세는 자바 프로그램을 살펴보자. 
+
+
+
+
+
+
 
  
 
