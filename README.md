@@ -1,7 +1,5 @@
 # Refactoring 2nd Edition  
 
-http://www.yes24.com/Product/Goods/89649360?OzSrank=1
-
 ***
 
 ## [목차]
@@ -18,6 +16,5 @@ http://www.yes24.com/Product/Goods/89649360?OzSrank=1
 
 - [기본적인 리팩터링](document/chapter-06/README.md)
 
-
-
+- [캡슐화](document/chapter-07/README.md)
 
