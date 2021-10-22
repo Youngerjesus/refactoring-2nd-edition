@@ -18,3 +18,4 @@
 
 - [캡슐화](document/chapter-07/README.md)
 
+- [기능 이동](document/chapter-08/README.md)
