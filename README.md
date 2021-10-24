@@ -21,3 +21,5 @@
 - [Chapter 8. 기능 이동](document/chapter-08/README.md)
 
 - [Chapter 9. 데이터 조직화](document/chapter-09/README.md)
+
+- [Chapter 10. 조건부 로직 간소화](document/chapter-10/README.md)
