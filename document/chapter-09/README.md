@@ -372,3 +372,274 @@ public class Example2ProductionPlan {
 
 ***
 
+## 9.4 참조를 값으로 바꾸기 
+
+### 배경 
+
+객체를 다른 객체에서 사용한다고 하면 참조 또는 값으로 취급한다. 
+
+참조냐 값이냐에 따른 가장 극명한 차이는 변경인데 참조의 경우에는 내부의 객체의 값이 변경되면 전파되지만 값인 경우에는 새로운 객체가 전달되므로 기존 객체에는 영향이 없다.
+
+클래스 필드르 값으로 다룬다면 내부 객체의 클래스를 수정해서 값 객체 (Value Object) 로 만들 수 있다.
+
+값 객체로 다루면 불변성을 줄 수 있으므로 대체로 활용하기 쉽고 프로그램 외부로 던져줘도 나중에 그 값이 나 몰래 바뀌어서 내부에 영향을 줄까 걱정하지 않아도 된다. __(여기서의 리팩토링 기법은 문제가 났을 때 해결하기 쉽도록 하는 기법이다.)__
+
+그러므로 값을 복제해서 이곳저곳 사용하더라도 걱정하지 않아도 된다.
+
+그렇다면 참조 객체를 사용하는 경우는 언제일까? 
+
+예컨대 특정 객체를 여러 객체에서 공유하고자 한다면, 한 객체의 변경이 다른 객체도 알아야 한다면 이런 경우에는 객체를 참조로 다뤄야한다.
+
+### 절차
+
+1. 후보 클래스가 불변인지 혹은 불변이 될 수 있는지 확인한다. __(값 객체는 변경해서 사용하는게 아니라 새로 생성해서 사용하는 것이므로.)__
+
+2. 각각의 세터를 하나씩 제거한다. (11.7 절) __(세터를 제거하는 이유가 다른 곳에서 변경하지 못하도록, 변경하는 곳이 있다면 컴파일 오류를 내도록 하기 위해서. 컴파일 오류가 있는 곳에는 새로운 객체를 사용하도록 하기 위해서.)__
+
+3. 이 값 객체의 필드들을 사용하는 동치성 (equality) 비교 메소드르 만든다.
+ 
+### 예시
+
+사람 (Person) 객체가 있고, 이 객체는 다음 코드처럼 생성자에서 전하번호가 올바로 설정되지 못하게 짜여있다고 해보자. 
+
+````java
+public class Person {
+    TelephoneNumber telephoneNumber; 
+    
+    public Person() {
+        telephoneNumber = new TelephoneNumber(); 
+    }
+    
+    public String getOfficeAreaCode() { return telephoneNumber.areaCode; }
+    public void setOfficeAreaCode(String areaCode) { telephoneNumber.setAreaCode(areaCode); }
+    
+    public String getOfficeNumber() { return telephoneNumber.number; }
+    public void setOfficeNumber(String number ) { telephoneNumber.setNumber(number);}
+}
+````
+
+````java
+public class TelephoneNumber {
+    String areaCode;
+    String number;
+
+    public String getAreaCode() {
+        return areaCode;
+    }
+
+    public void setAreaCode(String areaCode) {
+        this.areaCode = areaCode;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+
+    public void setNumber(String number) {
+        this.number = number;
+    }
+}
+```` 
+
+이 경우의 문제는 TelephoneNumber 에서 있어야 할 메소드들이 Person 에 있다는 것이다. 
+
+주로 클래스 추출 (7.5 절) 을 하다보면 이런 상황이 발생하는데 여기서 리팩토링을 해보자.
+
+TelephoneNumber 를 가리키는 참조는 Person 하나 뿐이므로 참조를 값으로 바꾸는게 가능하다. __(여러 곳에서 참조한다면 마음대로 참조를 값으로 바꾸기 어려울 것.)__
+
+가장 먼저 할 일은 TelephoneNumber 를 불변으로 만들자. __(불변으로 만드는걸 통해서 이 클래스는 아무데서돋 변경될 수 없고 새로운 클래스를 만들어야 한다.)__
+
+```java
+public class Person {
+    TelephoneNumber telephoneNumber;
+
+    public Person(String areaCode, String number) {
+        telephoneNumber = new TelephoneNumber(areaCode, number);
+    }
+
+    public String getOfficeAreaCode() { return telephoneNumber.areaCode; }
+    public void setOfficeAreaCode(String areaCode) { telephoneNumber = new TelephoneNumber(areaCode, telephoneNumber.number); }
+
+    public String getOfficeNumber() { return telephoneNumber.number; }
+    public void setOfficeNumber(String number ) { telephoneNumber = new TelephoneNumber(telephoneNumber.areaCode, number); }
+}
+```
+
+````java
+public class TelephoneNumber {
+    String areaCode;
+    String number;
+
+    public TelephoneNumber(String areaCode, String number) {
+        this.areaCode = areaCode;
+        this.number = number;
+    }
+
+    public String getAreaCode() {
+        return areaCode;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+}
+````
+
+***
+
+## 9.5 값을 참조로 바꾸기 
+
+### 배경
+
+하나의 데이터 구조 안에 논리적으로 똑같은 데이터 구조를 참조하는 레코드가 여러 개 있을 때가 있다.
+
+예로보면 주문 목록을 읽다 보면 같은 고객의 요청 주문이 여러 개 섞여 있을 수 있다.
+
+이때 고객을 값으로도, 참조로도 다룰 수 있는데 __둘의 차이는 변경의 유무만 신경쓰면 된다. 물론 복사를 하면 더 많은 메모리를 사용한다는 점이 있지만 크게 문제가 되진 않는다.__
+
+__논리적으로 같은 데이터를 물리적으로 복제할 때 가장 큰 문제점은 데이터를 갱신할 때 일관성의 문제다.__
+
+데이터를 갱신하면 모든 복제본의 데이터가 빠짐없이 갱신되어야 하고 하나라도 빠지면 안된다라면 연결된 참조로 바꿔주는게 좋다.
+
+값을 참조로 바꾸면 엔터티 하나당 객체가 단 하나만 존재하게 되는데 그러면 보통 이런 객체들을 한데 모아놓고 클라이언트들의 접근을 관리해주는 일종의 저장소가 필요해진다.
+
+각 엔터티를 표현하는 객체를 한 번만 만들고, 객체가 필요한 곳에서는 모두 이 저장소로부터 얻어쓰는 형태가 된다.
+
+
+### 절차
+
+1. 같은 부류애 속하는 객체들을 보관할 저장소를 만든다.
+
+2. 생성자에서 이 부류의 객체들 중 특정 객체를 정확히 찾아내는 방법이 있는지 확인한다.
+
+3. 호스트 객체의 생성자들을 수정하여 필요한 객체를 이 저장소에서 찾도록 한다. 하나씩 수정할 때마다 테스트한다.
+
+### 예시 
+
+예시로 주문 클래스를 준비했다. 
+
+이 과
+````java
+public class Order {
+    Customer customer; 
+    long number;
+
+    public Order(long customerId, long number) {
+        this.customer = new Customer(customerId);
+        this.number = number;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+}
+````
+
+````java
+public class Customer {
+    long id;
+
+    public Customer(long id) {
+        this.id = id;
+    }
+
+    public long getId() {
+        return id;
+    }
+}
+````
+
+여기서 하나의 고객이 주문 다섯개를 생성한다면 독립된 고객 객체가 다섯 개 만들어진다.
+
+이 중 하나를 수정한다 하더라도 네 개는 반영되지 않는다.
+
+그리고 고객의 정보를 조금이라도 수정할려면 고객 객체 모두 찾아서 수정해야한다.
+
+여기서 이제 리팩토링을 해보자.
+
+물리적으로 똑같은 고객 객체를 사용하고 싶다면 먼저 이 유일한 객체를 저장해둘 곳이 있어야 한다.
+
+객체를 저장하는 곳은 어플리케이션 마다 다르겠지만 간단한 상황이라면 나는 repository object 를 사용하는 편이다.
+
+````java
+
+public class CustomerRepository {
+    Map<Long, Customer> repository = new HashMap<>(); 
+    
+    public Customer registerCustomer(long id) {
+        if (!repository.containsKey(id)) repository.put(id, new Customer(id));
+        return findCustomer(id);
+    }
+    
+    public Customer findCustomer(long id) {
+        return repository.get(id);
+    }
+}
+````
+
+이렇게 저장소를 만들면 ID 하나당 오직 하나의 고객 객체만 생성됨을 보장하는게 가능해진다.
+
+이제 저장소를 만들었으니 Order 에서 사용하도록 하자.
+
+````java
+
+public class Order {
+    Customer customer;
+    long number;
+
+    public Order(long customerId, long number) {
+        this.customer = CustomerRepository.registerCustomer(customerId); 
+        this.number = number;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+}
+````
+
+이 예시에서는 전역 변수를 사용하므로 주의하자. 전역 객체는 독한 악취를 낼 수 있다. __(어디서든 접근이 가능하고 누가 변경했는지 추적하기가 어려우므로.)__
+
+그러므로 저장소를 사용할 땐 유효범위를 적절하게 사용하도록 하자. 
+
+***
+
+## 9.6 매직 리터럴 바꾸기
+
+### 배경
+
+매직 리터럴 (Magic Literal) 이란 소스 코드에 등장하는 일반적인 리터럴 값을 말한다. 
+
+예컨대 움직임을 계산하는 코드에서라면 9.806655 라는 숫자가 산재해 있다. __(중력 가속도를 말하는 듯)__
+
+이런 숫자는 특별한 의미가 있어서 이런 의미를 알지 못한다면 코드를 읽는 사람은 이해하기 어렵다. 이런 코드를 매직 리터럴 이라고 한다.
+
+이런 매직 리터럴 코드를 보면 코드 자체가 어떤 의므를 나타내는지 분명하게 드러내 주는게 좋다.
+
+리팩토링 기법은 쉽다. 숫자대신 상수를 정의하고 상수를 사용하도록 바꾸면 된다.
+
+매직 리터럴은 대체로 숫자가 많지만 다른 타입의 리터럴도 특별한 의미를 지닐 수 있다.
+
+예컨대 "M" 은 남성을 "서울" 은 본사를 뜻할 수도 있다.
+
+일반적으로 해당 값이 쓰이는 모든 곳을 적절한 이름의 상수로 바꿔주는 방법이 가장 좋다.
+
+상수로 바꾸는 것과 함께 다른 방법이 있는데 비교 로직이 있다면 고려해볼 수 있는 방법이다. 
+
+예를 들어 `aValue == "M"` 을 `aValue == MALE_GENDER` 로 바꾸기보다. `isMale(aValue)` 라는 함수 호출로 만드는 걸 선호한다.
+
+상수를 사용할 땐 상수를 과용하는 것도 의미없다. `int ONE = 1` 과 같은 의미없는 상수는 사용하지 않아도 된다. 
+
+그리고 리터럴이 함수 하나에서만 쓰이고 함수가 충분한 맥락을 제공해주고 있다면 상수를 사용하지 않아도 된다.
+
+### 절차 
+
+1. 상수를 선언하고 매직 리터럴을 대입한다.
+
+2. 해당 리터럴이 사용되는 곳을 모두 찾는다.
+
+3. 찾은 곳 각각에서 리터럴이 세 상수와 똑같은 의미로 쓰였는지 확인하며, 같은 의미라면 상수로 대체한 후 테스트한다.
+
+
+
+
