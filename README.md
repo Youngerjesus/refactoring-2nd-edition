@@ -12,7 +12,7 @@
 
 - [Chapter 4. 테스트 구축하기](document/chapter-04/README.md)
 
-- [Chapter 5. 리팩토링 카탈로그 보는 법](document/chapter-05/README.md)
+- [Chapter 5. 리팩터링 카탈로그 보는 법](document/chapter-05/README.md)
 
 - [Chapter 6. 기본적인 리팩터링](document/chapter-06/README.md)
 
@@ -23,3 +23,5 @@
 - [Chapter 9. 데이터 조직화](document/chapter-09/README.md)
 
 - [Chapter 10. 조건부 로직 간소화](document/chapter-10/README.md)
+
+- [Chapter 11. API 리팩터링](document/chapter-11/README.md)
