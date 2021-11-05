@@ -25,3 +25,5 @@
 - [Chapter 10. 조건부 로직 간소화](document/chapter-10/README.md)
 
 - [Chapter 11. API 리팩터링](document/chapter-11/README.md)
+
+- [Chapter 12. 상속 다루기](document/chapter-12/README.md)
