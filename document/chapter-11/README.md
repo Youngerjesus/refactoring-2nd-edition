@@ -781,3 +781,449 @@ public class Person {
 ```
 
 ***
+
+## 11.8 생성자를 팩토리 함수로 바꾸기
+
+### 배경 
+
+많은 객체 지향 언어에서는 생성자를 사용한다.
+
+객체를 초기화하는 용도로 사용하지만 자바를 기준으로 생성자는 기능 제공에서 한계를 제공하기도 한다.
+
+가령 생성자는 그 객체의 인스턴스를 반환한다는 점. 서브 클래스나 프록시를 반환하지는 못한다는 점이 있고
+
+생성자 메소드의 이름보다 더 적절한 이름이 있다고 판단되더라도 그 이름을 사용할 수 없다.  
+
+또 생성자를 호출하려면 특별한 연산자 new 키워드 (일반적인 프로그래밍 언어에서) 를 사용해야해서 일반적인 함수를 기대하는 자리에서는 사용할 수 없다.
+
+팩토리 함수는 이런 제약이 없는데 팩토리 함수에선 생성자를 써도되고 다른 함수로 대체해도 되기 때문이다.
+
+### 절차 
+
+1. 팩토리 함수를 만든다. 그리고 팩토리 함수의 본문에서는 생성자를 호출하도록 한다.
+
+2. 생성자를 호출하던 코드를 팩토리 함수로 대체한다.
+
+3. 하나씩 수정할 때마다 테스트한다.
+
+4. 생성자의 가시 범위를 최소화한다.
+
+### 예시
+
+직원을 예시로 보자. 
+
+먼저 직원 클래스다.
+
+```java
+public class Employee {
+    String name;
+    String type;
+
+    public Employee(String name, String type) {
+        this.name = name;
+        this.type = type;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getType() {
+        return type;
+    }
+}
+```
+
+다음은 이 코드를 사용하는 클라이언트 코드다.
+
+````java
+public void client() {
+    Employee candidate = new Employee(document.name, document.empType);
+}
+
+public void client2() {
+    Employee leadEngineer = new Employee(document.leadEngineer, "E");
+}
+````
+
+여기서 먼저 팩토리 메소드를 만들자.
+
+````java
+public Employee createEmployee(String name, String empType) {
+    return new Employee(name, empType); 
+}
+````
+
+그런 다음 생성자를 호출하는 코드를 모두 찾아서 팩토리 메소드로 바꾸자. 
+
+더 나아가서 타입을 나타내는 리터럴 코드보다 리터럴 코드에 맞는 메소드의 이름을 변경하는게 더 직관적이다. 
+
+```java
+public void client() {
+    Employee candidate = createEmployee(document.name, document.empType);
+}
+
+public void client2() {
+    Employee leadEngineer = createEngineer(document.leadEngineer); 
+}
+```
+
+***
+
+## 11.9 함수를 명령으로 바꾸기
+
+### 배경
+
+함수는 프로그래밍의 가장 기본적인 빌딩 요소다.
+
+그런데 함수는 그 함수만을 위한 객체로 캡슐화 되면 종종 유용해지는 상황이 생긴다 __(이 유용성에 대해서 알아야 겠다.)__
+
+이런 객체를 가리켜서 명령 객체, 함수를 명령 함수라고 한다. __(디자인 패턴의 Command Pattern 과도 같으며 명령이란 말은 객체의 상태를 변경하는 메소드다.)__
+
+명령 객체 대부분은 메소드 하나로 구성되고 이 메소드를 요청해서 실행하는 것이 이 객체의 목적이다. 
+
+명령은 평범한 함수 매커니즘 보다 훨씬 유연함을 제공해줄 수 있다. 가령 Undo 연산을 제공해줄 수 있다던지. 라이프 사이클을 좀 더 세밀하게 제어가 가능하다라는 점.
+
+그리고 메소드와 필드를 이용해서 복잡한 함수를 쪼갤 수 있다 라는 점.
+
+### 절차
+
+1. 대상 함수의 기능을 옮길 빈 클래스를 만든다. 클래스 이름은 함수 이름에 기초한다.
+
+2. 방금 생성한 빈 클래스로 함수를 옮긴다. (리팩토링이 끝날 때 까지는 함수를 클래스에서 함수 호출로 바꾸자, 함수 이름은 규칙이 따로 없다면 execute 나 call 로 짓는다.)
+
+3. 함수의 인수들 중 필드로 가질 것들을 생성자로 옮긴다.
+
+### 예시 
+
+이 리팩터링 기법은 복잡한 함수를 잘게 쪼개서 이해하거나 수정하기 쉽게 만드는 데 가치가 있다.
+
+그래서 복잡한, 조금 긴 함수를 가져와야 하지만 그러기에는 너무 불편할 수 있으므로 적당한 예제를 가지고 왔다.
+
+다음 예제는 건강보험 어플리케이에서 점수 계산을 하는 함수다.
+
+```java
+public int score(Candidate candidate, MedicalExample medicalExample, ScoringGuide scoringGuide) {
+    int result = 0;
+    int healthLevel = 0;
+    boolean highMedicalRiskFlag = false;
+
+    if (medicalExample.isSmoker) {
+        healthLevel += 10;
+        highMedicalRiskFlag = true;
+    }
+
+    String certificationGrade = "regular";
+    if (scoringGuide.stateWithLowCertification(candidate.originalState)) {
+        certificationGrade = "low";
+        result -= 5;
+    }
+
+    // 비슷한 코드가 한 참 이어짐
+    result -= Math.max(healthLevel - 5, 0);
+    return result;
+}
+```
+
+시작은 빈 클래스로 만들고 이 함수를 클래스로 옮기는 일부터 하자.
+
+````java
+public int score(Candidate candidate, MedicalExample medicalExample, ScoringGuide scoringGuide) {
+    return new Score().execute(candidate, medicalExample, scoringGuide);
+}
+````
+
+주로 나는 execute() 함수에서 매개변수를 받지 않도록 하는 편이다. 
+
+필요한 매개변수들은 객체의 필드로 갖도록 해서 다른 메소드에서 파라미터의 개수를 줄이도록 한다. (파라미터가 적을수록 이해하기가 쉬우니까.)
+
+그러므로 하나씩 생성자로 파라미터를 옮겨보자. 
+
+````java
+public int score(Candidate candidate, MedicalExample medicalExample, ScoringGuide scoringGuide) {
+    return new Score(candidate, medicalExample, scoringGuide).execute();
+}
+````
+
+***
+
+## 11.10 명령을 함수로 바꾸기
+
+### 배경
+
+명령 객체의 장점은 복잡한 연산을 수행하도록 객체 안에서 캡슐화를 할 수 있다는 점이다.
+
+복잡한 함수 자체가 객체가 가진 필드들로 인해서 쪼개질 수 있다라는 점이 가장 크다.
+
+하지만 함수 자체가 복잡하지 않다라고 한다면 명령 객체를 사용한다는 점 자체가 더 복잡할 수 있다.
+
+### 절차
+
+1. 명령을 생성하는 코드와 명령 실행 함수를 하나의 함수로 추출한다. 
+
+2. 명령의 보조 함수들을 각각 인라인 한다.
+
+3. 함수 선언 바꾸기를 통해서 생성자의 매개변수들을 모두 명령의 파라미터로 바꾼다.
+
+4. 명령 실행 메소드에서 필드를 사용하는 부분에서 파라미터를 사용하는 부분으로 바꾼다.
+
+5. 생성자 호출과 명령의 실행 메소드 호출을 대체 함수 안으로 인라인 한다.
+
+6. 테스트 한다.
+
+7. 죽은 코드를 제거한다.
+
+### 예시
+
+다음 명령 객체가 있다.
+
+```java
+public class ChargeCalculator {
+    Customer customer;
+    int usage;
+    Provider provider;
+
+    public ChargeCalculator(Customer customer, int usage, Provider provider) {
+        this.customer = customer;
+        this.usage = usage;
+        this.provider = provider;
+    }
+
+    public double getBaseCharge() {
+        return customer.baseRate * usage;
+    }
+
+    public double charge() {
+        return getBaseCharge() + provider.connectionCharge; 
+    }
+}
+```
+
+다음은 호출자의 코드다. 
+
+````java
+public void client() {
+    double monthCharge = new ChargeCalculator(customer, usage, provider).charge();
+}
+````
+
+이 명령 클래스는 간단한 코드이므로 함수로 대체하자. 
+
+첫 번째로 이 클래스를 생성하고 호출하는 코드를 함께 추출한다.
+
+```java
+public void charge(Customer customer, int usage, Provider provider) {
+    double monthCharge = new ChargeCalculator(customer, usage, provider).charge();
+}
+```
+
+그 다음 ChargeCalculator 에서 보조 함수를 인라인 하고 메소드 본문을 대체 함수로 옮기면 된다.
+
+```java
+public void charge(Customer customer, int usage, Provider provider) {
+    double monthCharge = customer.baseRate * usage + provider.connectionCharge;
+}
+```
+
+이후 명령 클래스는 지우면 된다.
+
+***
+
+## 11.11 수정된 값 반환하기 
+
+### 배경
+
+데이터가 어떻게 수정되는지 코드에서 추적하는 일은 어렵다.
+
+그것을 도와주는 방법 중 하나로 함수가 객체의 한 상태만을 변경시킨다면, 값 한 개만 변경시킨다면 그 값을 리터하도록 해서, 외부로 드러나도록 해서 어떻게 수정되는지 추적하기 쉽게 하는 방법이 있다. 
+
+(이 방법은 __질의 함수와 변경 함수 분리하기 (11.1 절)__ 과 대비된다고 생각들기도 하는데 본질적인 목적인 데이터 변경 추적이 가능해지는지에 주목하면 되지 않을까.)
+
+이 리팩토링의 방법은 값 여러 개를 변경시키는 경우에는 하지 말자.
+
+### 절차
+
+1. 함수가 수정된 값을 반환하게 하고 호출자가 그 값을 변수로 담도록 한다.
+
+2. 테스트한다.
+
+3. 피호출함수 안에 반환할 값을 가리키는 새로운 변수를 선언한다.
+
+4. 테스트한다.
+
+5. 계산이 선언과 동시에 이뤄지도록 통함한다.
+
+6. 테스트한다.
+
+7. 피호출 함수의 변수 이름을 새 역할에 어울리도록 바꾼다.
+
+8. 테스트한다.
+
+### 예시
+
+GPS 위치 목록으로 다양한 계산을 하는 코드가 있다. 
+
+````java
+public class GPS {
+    List<Point> points = new ArrayList<>();
+    int totalAscent;
+    int totalTime;
+    int totalDistance;
+    
+    public void calculate() {
+        totalAscent = 0;
+        totalTime = 0;
+        totalDistance = 0;
+        
+        calculateAscent();
+        calculateTime();
+        calculateDistance();
+        int pace = totalTime / 60 / totalDistance;
+    }
+
+    ...
+}
+````
+
+이번 리팩토링에서는 calculateAscent() 함수 부분, 고도 상승분 (Ascent) 부분만 하겠다.
+
+calculateAscent() 부분의 구현은 다음과 같다.
+
+```java
+private void calculateAscent() {
+    for (int i = 0; i < points.size(); i++) {
+        int verticalChange = points.get(i).elevation - points.get(i - 1).elevation;
+        totalAscent += Math.max(verticalChange, 0);
+    }
+}
+```
+
+여기서 값을 변경하는 부분인 totalAscent 를 리턴하도록 해서 추적하기 쉽도록 만들자.
+
+````java
+public void calculate() {
+    totalAscent = calculateAscent();
+    totalTime = calculateTime();
+    totalDistance = calculateDistance();
+
+    int pace = totalTime / 60 / totalDistance;
+}
+
+private int calculateAscent() {
+    int result = 0;
+    for (int i = 0; i < points.size(); i++) {
+        int verticalChange = points.get(i).elevation - points.get(i - 1).elevation;
+        result += Math.max(verticalChange, 0);
+    }
+    return result;
+}
+````
+
+***
+
+## 11.12 오류 코드를 예외로 바꾸기 
+
+### 배경
+
+오류 코드를 사용한다면 오류 코드를 일일히 검사해서 처리해줘야 한다.
+
+예외는 예외를 던지면 적절한 예외 핸들러를 찾을 때까지 콜스택을 타고 위로 전판된다.
+
+그래서 프로그램에서 적절한 지점에서 예외를 처리하도록 해놨다면 프로그램은 예외가 생기는 것에 대해서 신경쓰지 않아도 된다. __(다만 예외 처리는 정교해야한다. 자신이 처리할 수 있는 것이고 처리하는게 맞다면 처리하고 그렇지 않다면 다시 던지느 구조. )__
+
+예외를 사용할 땐 예외가 나서 프로그램이 종료되더라도 프로그램이 정상적으로 동작할 것인지에 대한 물음을 해보면 된다.
+
+그렇다면 예외를 사용해서 처리하면 되고 그렇지 않다면 오류를 잡아서 검출해야 한다는 뜻이다.
+
+### 절차 
+
+1. 콜스택 상위에어서 예외를 처리할 예외 핸들러를 만든다.
+
+2. 테스트한다.
+
+3. 정적 검사를 수행한다.
+
+4. catch 절에서 직접 처리할 수 있는 예외는 적절히 대처하고 그렇지 않다면 던진다.
+
+5. 테스트한다.
+
+6. 오류 코드를 반환하는 곳에서 예외를 던지도록 한다.
+
+7. 모두 수정했다면 오류 코드를 콜스택 위로 던지는 코드를 모두 제거한다.
+
+***
+
+## 11.13 예외를 사전확인으로 바꾸기 
+
+### 배경
+
+예외를 던지기 전에 호출자가 예외가 일어날 상황을 미리 감지하고 사전에 대처할 수 있다면 그렇게 하는게 좀 더 직관적일 것이다.
+
+__(예외를 던지고 뒤늦게 catch 문에서 수숩하는 코드보다 적절한지 확인하고 그렇지 않다면 문제를 해결하고 다음 곳으로 가는 코드.)__
+
+### 절차
+
+1. 예외를 유발하는 코드를 검사하는 조건문을 추가한다. (catch 블록의 코드를 조건문에 옮긴다.)
+
+2. catch 문에 어서션을 추가하고 테스트한다.
+
+3. try 문과 catch 문을 제거한다.
+
+4. 테스트한다.
+
+### 예시 
+
+데이터베이스 연결 같은 자원들을 관리하는 자원 풀 (Resource Pool) 클래스가 있다고 가정해보자. 
+
+자원이 필요한 코드는 풀에서 하나씩 생성해서 사용한다.
+
+풀은 어떤 자원이 사용되고 있는지 추적하며, 풀에 자원이 없다면 새로 생성한다.
+
+```java
+public class ResourcePool {
+    Deque<Resource> available = new ArrayDeque<>();
+    List<Resource> allocated = new ArrayList<>();
+
+    public Resource get() {
+        Resource result;
+        try {
+            result = available.pop();
+            allocated.add(result);
+        } catch (NoSuchElementException e) {
+            result = Resource.create();
+            allocated.add(result);
+        }
+        return result;
+    }
+}
+```
+
+풀에서 자원이 고갈되는 건 사전에 예상하고 해결할 수 있으므로 예외 처리로 대응하는 건 올바르지 않다.
+
+사전 체크 조건문 코드를 넣고 catch 문에 있는 걸 옮기자. 그 다음 try 문도 적절히 옮기자.
+
+```java
+public Resource get() {
+    Resource result;
+    
+    if (available.isEmpty()) {
+        result = Resource.create();
+        allocated.add(result);
+    } else {
+        try {
+            result = available.pop();
+            allocated.add(result);
+        } catch (NoSuchElementException e) {
+            throw new NoSuchElementException("도달불가"); 
+        }    
+    }
+    
+    return result;
+}
+```
+
+어서션까지 통과되면 try catch 문을 제거하자.
+
+try 문은 else 절로 옮기면 된다. 
+
+***
