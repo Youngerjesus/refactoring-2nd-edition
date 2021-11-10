@@ -393,7 +393,7 @@ Filter 나 Map 같은 파이프라인 연산을 사용하면 원소들이 어떻
 
 ***
 
-## 3.18 중개자 (Middle Name)
+## 3.18 중개자 (Middle Man)
 
 객체의 대표적인 기능 중 하나로 캡슐화 (encapsulation) 이라는 기능이 있다. 
 
