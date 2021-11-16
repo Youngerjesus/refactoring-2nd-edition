@@ -28,4 +28,4 @@
 
 - [Chapter 12. 상속 다루기](document/chapter-12/README.md)
 
-- [Refactoring 리뷰](document/review/README.md)
+- [리팩터링 리뷰](document/review/README.md)
